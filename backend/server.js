@@ -12,20 +12,28 @@ if (!process.env.DAILY_API_KEY || !process.env.DAILY_API_URL) {
   process.exit(1);
 }
 
-// 🔥 KRİTİK DEĞİŞİKLİK: CORS'u daha akıllı hale getiriyoruz
-const allowedOrigins = [CLIENT_URL, "http://localhost:3000"];
+// İzin verilen ana adresler
+const allowedOrigins = [
+  CLIENT_URL, // Ana Vercel adresimiz: https://voxa-plus-joht.vercel.app
+  "http://localhost:3000" // Yerel geliştirme ortamımız
+];
+
 const corsOptions = {
   origin: function (origin, callback) {
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+    // Vercel'in tüm 'voxa-plus-joht-*.vercel.app' önizleme adreslerine izin veren sihirli formül
+    const isVercelPreview = origin && origin.match(/^https:\/\/voxa-plus-joht-.*\.vercel\.app$/);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || isVercelPreview || !origin) {
       callback(null, true);
     } else {
+      console.error("Reddedilen CORS Kaynağı:", origin);
       callback(new Error('Bu kaynaktan gelen CORS isteği reddedildi.'));
     }
   }
 };
 
 const app = express();
-app.use(cors(corsOptions)); // Akıllı CORS'u kullan
+app.use(cors(corsOptions)); // Akıllı ve esnek CORS'u kullan
 app.use(express.json());
 
 app.get('/health', (req, res) => {
@@ -49,6 +57,5 @@ app.post('/api/join-room', async (req, res) => {
 const serverPort = PORT || 8080;
 app.listen(serverPort, () => {
   console.log(`Sunucu http://localhost:${serverPort} adresinde dinlemede.`);
-  // 🔥 KANIT: Sunucu başladığında hangi adreslere izin verdiğini görelim
-  console.log("İzin verilen CORS kaynakları:", allowedOrigins);
+  console.log("İzin verilen ana CORS kaynakları:", allowedOrigins);
 });
