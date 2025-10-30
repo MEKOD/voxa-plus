@@ -7,44 +7,48 @@ dotenv.config();
 
 const { CLIENT_URL, PORT } = process.env;
 
-// dailyService modülü kendi içinde API anahtarını kontrol etse de,
-// sunucunun başlangıçta temel yapılandırmaya sahip olduğunu garanti etmek iyidir.
 if (!process.env.DAILY_API_KEY || !process.env.DAILY_API_URL) {
-  console.error("KRİTİK HATA: .env dosyasında Daily API anahtarı veya URL'si eksik. Sunucu başlatılamıyor.");
+  console.error("KRİTİK HATA: Daily API anahtarları eksik.");
   process.exit(1);
 }
 
-const app = express();
+// 🔥 KRİTİK DEĞİŞİKLİK: CORS'u daha akıllı hale getiriyoruz
+const allowedOrigins = [CLIENT_URL, "http://localhost:3000"];
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Bu kaynaktan gelen CORS isteği reddedildi.'));
+    }
+  }
+};
 
-// Güvenlik ve veri işleme için temel middleware'ler
-app.use(cors({ origin: CLIENT_URL }));
+const app = express();
+app.use(cors(corsOptions)); // Akıllı CORS'u kullan
 app.use(express.json());
 
-// Oda oluşturma ve token alma için tek, temiz endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'VOXA Backend is running' });
+});
+
 app.post('/api/join-room', async (req, res) => {
   const { roomName, userName, isOwner = false } = req.body;
-
   if (!roomName || !userName) {
-    return res.status(400).json({ error: 'Oda adı ve kullanıcı adı alanları zorunludur.' });
+    return res.status(400).json({ error: 'Oda adı ve kullanıcı adı gereklidir.' });
   }
-
   try {
-    // Tüm karmaşık Daily.co mantığı, bu tek servis çağrısının arkasında soyutlandı.
     const token = await dailyService.getRoomToken(roomName, userName, isOwner);
-    
     res.status(200).json({ token });
   } catch (error) {
-    // dailyService'ten gelen spesifik hata mesajını logla ve kullanıcıya döndür.
-    console.error(`Odaya katılım sağlanamadı [${roomName}]:`, error.message);
-    
-    // Güvenlik için, istemciye her zaman genel bir hata mesajı döndürmek daha iyidir,
-    // ancak hata ayıklama kolaylığı için dailyService'ten gelen mesajı kullanabiliriz.
-    res.status(500).json({ error: error.message || 'Sunucu tarafında odaya katılım sağlanamadı.' });
+    console.error("Odaya katılım hatası:", error.message);
+    res.status(500).json({ error: error.message || 'Odaya katılım sağlanamadı.' });
   }
 });
 
 const serverPort = PORT || 8080;
-
 app.listen(serverPort, () => {
-  console.log(`Sunucu, http://localhost:${serverPort} adresinde dinlemede.`);
+  console.log(`Sunucu http://localhost:${serverPort} adresinde dinlemede.`);
+  // 🔥 KANIT: Sunucu başladığında hangi adreslere izin verdiğini görelim
+  console.log("İzin verilen CORS kaynakları:", allowedOrigins);
 });
