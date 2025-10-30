@@ -1,0 +1,18 @@
+# Bağımlılıklar
+/node_modules
+/backend/node_modules
+/frontend/node_modules
+
+# Ortam Değişkenleri - ASLA GÖNDERİLMEZ
+.env
+.env*
+/backend/.env
+/frontend/.env.local
+
+# Build çıktıları
+/frontend/.next
+/build
+/dist
+
+# İşletim Sistemi dosyaları
+.DS_Store
